@@ -9,6 +9,9 @@ autopep8 = "*"
 [packages]
 slackclient = "*"
 slackeventsapi = "*"
+python-dotenv = "*"
+flask = "*"
+peewee = "*"
 
 [requires]
 python_version = "3.7"
