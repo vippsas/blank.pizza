@@ -1,6 +1,6 @@
 import datetime
 
-from models import Event, Invitation, InvitationState
+from models import Event, Invitation, InvitationState, Reminder
 
 
 def get_future_events():
@@ -34,3 +34,7 @@ def get_rejected_invitations(event_id):
 
 def get_norsvp_invitations(event_id):
     return _get_invitation_by_state(event_id, InvitationState.NoResponse)
+
+
+def get_invitation_reminders(invitation_id):
+    return Reminder.select().where((Reminder.invitation_id == invitation_id)).order_by(Reminder.sent_at.desc())

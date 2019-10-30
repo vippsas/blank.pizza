@@ -56,6 +56,9 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--init":
         debug_init()
 
+    import api.manager
+    api.manager.send_reminders()
+
     PORT = os.environ["PORT"]
 
     logging.info(f"Starting Slack app on port {PORT}")

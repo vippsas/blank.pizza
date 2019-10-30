@@ -3,21 +3,49 @@ import datetime
 from peewee import fn
 
 from client import client as slack
-from models import Event, Invitation, InvitationState, User, Venue
+from models import Event, Invitation, InvitationState, User, Venue, Reminder
 
 import api.slack
 import api.events
 import views
 import utils
 
+
 NUM_INVITE_USERS = 3
 NUM_REMINDERS = 3
 
 
-def send_reminders(event):
-    invitations = Invitation.select().where((Invitation.event_id == event.id) &
-                                            (Invitation.state == InvitationState.Invited))
-    pass
+def send_reminders():
+    events = api.events.get_events_in_preparation()
+    for e in events:
+        send_event_reminders(e)
+
+
+def _get_last_reminded(event, reminders):
+    if len(reminders) == 0:
+        return event.created
+    return reminders[0].sent_at
+
+
+def send_event_reminders(event):
+    pending = api.events.get_pending_invitations(event.id)
+    created = event.created
+    now = datetime.datetime.utcnow()
+    for invitation in pending:
+        reminders = api.events.get_invitation_reminders(invitation.id)
+        last_reminded = _get_last_reminded(event, reminders)
+        time_diff = (now - last_reminded)
+        if time_diff > datetime.timedelta(minutes=1):
+            if len(reminders) >= NUM_REMINDERS:
+                invitation.state = InvitationState.NoResponse
+                invitation.save()
+                print(f"{invitation.user.name} taper plassen sin!")
+            else:
+                Reminder.create(
+                    invitation=invitation.id,
+                    sent_at=datetime.datetime.utcnow()
+                )
+                print(f"{invitation.user.name} har ikke SVART på mer enn 1 minutter")
 
 
 def finalize_events():
@@ -31,16 +59,27 @@ def finalize_events():
             users = list(map(lambda inv: inv.user.slack_id, accepted))
             mentions = utils.create_mentions(users)
             slack.chat_postMessage(
-                channel=e.channel.id, text=f"{mentions} dere skal på pizza da. {e.venue.name} kl {utils.sane_time(e.starts_at)}")
+                channel=e.channel.id,
+                text=f"{mentions} dere skal på pizza da. {e.venue.name} kl {utils.sane_time(e.starts_at)}"
+            )
 
 
 def start_pizza(channel, initiator):
     venue = Venue.select().order_by(fn.Random()).get()
     tomorrow = datetime.date.today() + datetime.timedelta(days=1)
     starts_at = datetime.datetime(
-        year=tomorrow.year, month=tomorrow.month, day=tomorrow.day, hour=18)
+        year=tomorrow.year,
+        month=tomorrow.month,
+        day=tomorrow.day,
+        hour=18
+    )
 
-    event = Event(channel=channel, venue=venue, starts_at=starts_at)
+    event = Event(
+        channel=channel,
+        created=datetime.datetime.utcnow(),
+        venue=venue,
+        starts_at=starts_at
+    )
     event.save()
 
     to_invite = User.select().order_by(fn.Random()).limit(NUM_INVITE_USERS)
