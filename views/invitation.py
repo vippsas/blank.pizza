@@ -4,26 +4,35 @@ from models import InvitationState
 
 
 class Invitation:
-    def __init__(self, user):
+    def __init__(self, user, state, venue, starts_at):
         self.user = user
-        self.status = InvitationState.Invited
-        self.venue = "Hell's Kitchen"
-        self.time = "01/11/2019 18:00:00"
+        self.state = state
+        self.venue = venue
+        self.starts_at = starts_at
 
     def get_payload(self):
-        if self.status == InvitationState.Invited:
-            return self.get_invited_blocks()
-        elif self.status == InvitationState.Accepted:
-            return self.get_accepted_blocks()
-        elif self.status == InvitationState.Rejected:
-            return self.get_rejected_blocks()
-        elif self.status == InvitationState.NoResponse:
-            return self.get_norsvp_blocks()
+        if self.state == InvitationState.Invited:
+            return [
+                self._get_greeting_block(),
+                self._get_event_block(),
+                self._get_actions_block(),
+            ]
         else:
-            logging.error(f"Reached invalid state: {self.status}")
-            pass
+            return [
+                self._get_greeting_block(),
+                self._get_event_block(),
+            ]
 
-    def get_event_block(self):
+    def _get_greeting_block(self):
+        return {
+            "type": "section",
+            "text": {
+                    "type": "mrkdwn",
+                    "text": f"Hei <@{self.user}>! :eyes: Du er invitert til :pizza:! Kan du? Svar kjapt! :pray:"
+            }
+        }
+
+    def _get_event_block(self):
         return {
             "type": "section",
             "fields": [
@@ -33,24 +42,15 @@ class Invitation:
                 },
                 {
                     "type": "mrkdwn",
-                    "text": f":calendar: *Når?*\n{self.time}"
+                    "text": f":calendar: *Når?*\n{self.starts_at.strftime('%d/%m %H:%M')}"
                 },
             ]
         }
 
-    def get_invited_blocks(self):
-        return [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"Hei <@{self.user}>! :eyes: Du er invitert til :pizza:! Kan du? Svar kjapt! :pray:"
-                }
-            },
-            self.get_event_block(),
-            {
-                "type": "actions",
-                "elements": [
+    def _get_actions_block(self):
+        return {
+            "type": "actions",
+            "elements": [
                     {
                         "type": "button",
                         "text": {
@@ -59,9 +59,9 @@ class Invitation:
                             "text": "Ja :thumbsup: :star-struck:"
                         },
                         "style": "primary",
-                        "value": "accept_invite"
+                        "value": InvitationState.Accepted
                     },
-                    {
+                {
                         "type": "button",
                         "text": {
                             "type": "plain_text",
@@ -69,8 +69,7 @@ class Invitation:
                             "text": "Nei :pizza: :no_entry_sign: :nauseated_face:"
                         },
                         "style": "danger",
-                        "value": "reject_invite"
+                        "value": InvitationState.Rejected
                     }
-                ]
-            }
-        ]
+            ]
+        }
