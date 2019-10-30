@@ -1,4 +1,4 @@
-from peewee import DateTimeField, ForeignKeyField, Model, AutoField
+from peewee import AutoField, DateTimeField, ForeignKeyField, Model
 
 from .base_model import BaseModel
 from .invitation import Invitation
