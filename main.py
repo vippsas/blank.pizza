@@ -9,13 +9,13 @@ logging.basicConfig(level=logging.DEBUG)
 
 def debug_init():
     from peewee import EXCLUDED
+    from database import database as db
     from client import client as slack
     from models import Team, Channel, User, Venue
 
     import api.slack
 
     logging.info("Creating tables")
-    db = database.database
     with db:
         db.create_tables(models.tables)
 
@@ -32,7 +32,11 @@ def debug_init():
         for u in users:
             print(u["name"])
             query = (User
-                     .insert(slack_id=u["id"], team=team.id, name=u["name"])
+                     .insert(
+                         slack_id=u["id"],
+                         channel=channel.id,
+                         name=u["name"]
+                     )
                      .on_conflict(
                          conflict_target=[User.id],
                          preserve=[User.slack_id, User.name]
@@ -40,8 +44,12 @@ def debug_init():
             query.execute()
 
     logging.info("Creating venues")
-    Venue.insert_many([{"name": "Tranen"}, {"name": "Sentralen"}, {
-        "name": "Ferro"}, {"name": "Hell's Kitchen"}]).execute()
+    Venue.insert_many([
+        {"name": "Tranen"},
+        {"name": "Sentralen"},
+        {"name": "Ferro"},
+        {"name": "Hell's Kitchen"}
+    ]).execute()
 
 
 if __name__ == "__main__":
