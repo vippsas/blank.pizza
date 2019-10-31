@@ -40,7 +40,6 @@ def interactions_handler():
             print("No invitation")
             abort(400)
 
-        api.manager.update_invitation(invitation, action["value"])
-        api.manager.finalize_events()
+        api.manager.update_user_invitation(invitation, action["value"])
 
     return '', 200

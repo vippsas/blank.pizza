@@ -5,6 +5,7 @@ from flask import request, abort, jsonify
 
 from app import app
 
+from models import Channel
 import api.manager
 
 logging.info("Setting up Flask routes for Slash commands")
@@ -12,11 +13,13 @@ logging.info("Setting up Flask routes for Slash commands")
 
 @app.route("/slack/commands/pizza", methods=["POST"])
 def pizza_command_handler():
-    # TODO: Validation
     trigger_id = request.form["trigger_id"]
     print(request.form)
 
-    api.manager.start_pizza(
-        request.form["channel_id"], request.form["user_id"])
+    channel_id = request.form["channel_id"]
+    if not Channel.select().where(Channel.id == channel_id).exists():
+        return '', 400
+
+    api.manager.start_event(channel_id)
 
     return '', 200

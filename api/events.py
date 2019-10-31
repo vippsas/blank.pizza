@@ -4,11 +4,18 @@ from models import Event, Invitation, InvitationState, Reminder
 
 
 def get_future_events():
-    return Event.select().where(Event.starts_at > datetime.datetime.utcnow())
+    return (Event
+            .select()
+            .where(Event.starts_at > datetime.datetime.now()))
 
 
 def get_events_in_preparation():
-    return Event.select().where((Event.starts_at > datetime.datetime.utcnow()) & (Event.finalized == False))
+    return (Event
+            .select()
+            .where(
+                (Event.starts_at > datetime.datetime.now()) &
+                (Event.finalized == False)
+            ))
 
 
 def get_all_invitations(event_id):
@@ -16,8 +23,10 @@ def get_all_invitations(event_id):
 
 
 def _get_invitation_by_state(event_id, state):
-    return Event.get(Event.id == event_id).invitations.where(
-        Invitation.state == state)
+    return (Event
+            .get(Event.id == event_id)
+            .invitations
+            .where(Invitation.state == state))
 
 
 def get_pending_invitations(event_id):
@@ -37,4 +46,7 @@ def get_norsvp_invitations(event_id):
 
 
 def get_invitation_reminders(invitation_id):
-    return Reminder.select().where((Reminder.invitation_id == invitation_id)).order_by(Reminder.sent_at.desc())
+    return (Reminder
+            .select()
+            .where(Reminder.invitation == invitation_id)
+            .order_by(Reminder.sent_at.desc()))

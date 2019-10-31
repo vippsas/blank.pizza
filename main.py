@@ -65,7 +65,7 @@ if __name__ == "__main__":
         debug_init()
 
     import api.manager
-    api.manager.send_reminders()
+    api.manager.process_events()
 
     PORT = os.environ["PORT"]
 
