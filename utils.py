@@ -7,6 +7,8 @@ def create_mention(user_id):
 
 def create_mentions(user_ids):
     users = list(map(create_mention, user_ids))
+    if len(users) == 0:
+        return None
     if len(users) == 1:
         return users[0]
     if len(users) == 2:

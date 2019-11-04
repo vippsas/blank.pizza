@@ -39,7 +39,14 @@ def process_event(event):
         logging.info(f"Event {event.id}: Event is in URGENT mode")
     """
 
-    # Send reminders
+    if trigger_finalization(event):
+        return
+    trigger_reminders(event)
+    trigger_invitations(event)
+
+
+def trigger_reminders(event):
+    channel = event.channel
     pending_invitations = api.events.get_pending_invitations(event.id)
     if len(pending_invitations) > 0:
         reminded, norsvpd = 0, 0
@@ -65,6 +72,9 @@ def process_event(event):
         logging.info(
             f"Event {event.id}: Sent {reminded} invitation reminders and marked {norsvpd} invitations no-RSVP")
 
+
+def trigger_finalization(event):
+    channel = event.channel
     num_accepted_invitations = (api.events
                                 .get_accepted_invitations(event.id)
                                 .count())
@@ -82,8 +92,15 @@ def process_event(event):
                     invitation, InvitationState.Rescinded)
 
         finalize_event(event)
-        return
+        return True
+    return False
 
+
+def trigger_invitations(event):
+    channel = event.channel
+    num_accepted_invitations = (api.events
+                                .get_accepted_invitations(event.id)
+                                .count())
     num_pending_invitations = (api.events
                                .get_pending_invitations(event.id)
                                .count())
@@ -235,6 +252,11 @@ def update_user_invitation(invitation, new_state):
     )
     if not response["ok"]:
         raise "shit"
+
+    if new_state == InvitationState.Accepted:
+        trigger_finalization(invitation.event)
+    if new_state == InvitationState.Rejected:
+        trigger_invitations(invitation.event)
 
 
 def _get_last_reminded(event, reminders):
