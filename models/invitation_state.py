@@ -6,3 +6,4 @@ class InvitationState(str, Enum):
     Accepted = "accepted"
     Rejected = "rejected"
     NoResponse = "norsvp"
+    Rescinded = "rescinded"

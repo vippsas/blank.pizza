@@ -20,6 +20,6 @@ def pizza_command_handler():
     if not Channel.select().where(Channel.id == channel_id).exists():
         return '', 400
 
-    api.manager.start_event(channel_id)
+    api.manager.create_event(channel_id)
 
     return '', 200

@@ -65,7 +65,12 @@ if __name__ == "__main__":
         debug_init()
 
     import api.manager
-    api.manager.process_events()
+    from schedule import Scheduler
+    from batch import run_continuously
+
+    batch_schedule = Scheduler()
+    batch_schedule.every(2).minutes.do(api.manager.process_events)
+    halt_scheduler = run_continuously(batch_schedule)
 
     PORT = os.environ["PORT"]
 

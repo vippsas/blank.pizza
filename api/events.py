@@ -22,6 +22,16 @@ def get_all_invitations(event_id):
     return Event.get(Event.id == event_id).invitations
 
 
+def get_active_invitations(event_id):
+    return (Event
+            .get(Event.id == event_id)
+            .invitations
+            .where(
+                (Invitation.state == InvitationState.Invited) |
+                (Invitation.state == InvitationState.Accepted)
+            ))
+
+
 def _get_invitation_by_state(event_id, state):
     return (Event
             .get(Event.id == event_id)

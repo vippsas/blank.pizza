@@ -21,14 +21,109 @@ def process_events():
     events = api.events.get_events_in_preparation()
 
     for e in events:
-        # Ensure invitations are reminded of
-        send_invitation_reminders(e)
-
-        # Ensure event has invitations
-        send_event_invitations(e)
+        process_event(e)
 
 
-def start_event(channel):
+EVENT_URGENT = 24
+EVENT_START_INVITES = 10
+REMIND_INTERVAL = 4
+REMIND_INTERVAL_URGENT = 30
+
+
+def process_event(event):
+    logging.info(f"Event {event.id}: Processing upcoming event")
+    if event.finalized:
+        logging.info(f"Event {event.id}: Event is finalized, skipping")
+        return
+
+    time_until_event = datetime.datetime.now() - event.starts_at
+    if time_until_event > datetime.timedelta(days=EVENT_START_INVITES):
+        logging.info(
+            f"Event {event.id}: Event is too far in the future, skipping")
+        return
+
+    if time_until_event <= datetime.timedelta(hours=EVENT_URGENT):
+        logging.info(f"Event {event.id}: Event is in URGENT mode")
+
+    if time_until_event <= datetime.timedelta(days=EVENT_START_INVITES):
+        # Send reminders
+        pending_invitations = api.events.get_pending_invitations(event.id)
+        if len(pending_invitations) > 0:
+            reminded, norsvpd = 0, 0
+            for invitation in pending_invitations:
+                reminders = api.events.get_invitation_reminders(invitation.id)
+                last_reminded = _get_last_reminded(event, reminders)
+                time_diff = (datetime.datetime.now() - last_reminded)
+                if time_diff > datetime.timedelta(minutes=1):
+                    # Check if invitation reminder has expired
+                    if len(reminders) >= NUM_REMINDERS:
+                        # Check if invitation has reached threshold for amount of reminders
+                        logging.info(
+                            f"Event {event.id}: Invitation {invitation.id} expired without response, marking no-RSVP")
+                        update_user_invitation(
+                            invitation, InvitationState.NoResponse)
+                        norsvpd += 1
+                    else:
+                        # If not, send a new reminder
+                        logging.info(
+                            f"Event {event.id}: Sending reminder  # {len(reminders)+1} for invitation {invitation.id}")
+                        send_invitation_reminder(invitation)
+                        reminded += 1
+            logging.info(
+                f"Event {event.id}: Sent {reminded} invitation reminders and marked {norsvpd} invitations no-RSVP")
+
+        num_accepted_invitations = (api.events
+                                    .get_accepted_invitations(event.id)
+                                    .count())
+        if num_accepted_invitations == NUM_INVITE_USERS:
+            logging.info(
+                f"Event {event.id}: Event has enough participants, finalizing")
+
+            # Sanity check: If event has enough participants, it should not have any pending invites
+            pending_invitations = api.events.get_pending_invitations(event.id)
+            if len(pending_invitations) > 0:
+                logging.warning(
+                    f"Event {event.id}: Event has enough participants, yet has pending invites. This should not happen. Rescinding invitations.")
+                for invitation in pending_invitations:
+                    update_user_invitation(
+                        invitation, InvitationState.Rescinded)
+
+            finalize_event(event)
+            return
+
+        num_pending_invitations = (api.events
+                                   .get_pending_invitations(event.id)
+                                   .count())
+        num_active_invitations = num_accepted_invitations + num_pending_invitations
+        num_to_invite = NUM_INVITE_USERS - num_active_invitations
+        if num_to_invite > 0:
+            new_invitations = get_event_candidates(
+                event,
+                num_to_invite,
+                event.channel.users.count()
+            )
+
+            # Check if channel is exhausted for invitations
+            if len(new_invitations) == 0:
+                logging.info(
+                    f"Event {event.id}: Event needs {num_to_invite} more participants, but there are no more candidates")
+                if num_pending_invitations == 0 and num_accepted_invitations < NUM_INVITE_USERS:
+                    logging.info(
+                        f"Event {event.id}: Finalizing event with {num_accepted_invitations} participants as there are no more candidates to invite")
+                    finalize_event(event)
+                    return
+            elif len(new_invitations) < num_to_invite:
+                logging.info(
+                    f"Event {event.id}: Needed {num_to_invite} new candidates, but found only {len(new_invitations)}")
+
+            for candidate in new_invitations:
+                user = User.get(User.id == candidate["id"])
+                logging.info(
+                    f"Event {event.id}: Inviting {user.name} (attended {candidate['events_attended']}) to event")
+                send_user_invitation(event, user)
+
+
+def create_event(channel):
     venue = Venue.select().order_by(fn.Random()).get()
     tomorrow = datetime.date.today() + datetime.timedelta(days=1)
     starts_at = datetime.datetime(
@@ -44,8 +139,6 @@ def start_event(channel):
         starts_at=starts_at
     )
     event.save()
-
-    send_event_invitations(event)
 
     return event
 
@@ -80,41 +173,6 @@ def get_event_candidates(event, num_invite, num_candidates):
             .order_by(SQL("events_attended"), fn.Random())
             .limit(num_invite)
             .dicts())
-
-
-def send_event_invitations(event):
-    if event.finalized:
-        logging.info(
-            f"Event {event.id}: Event finalized, no need for invitations")
-        return False
-
-    num_invited = Invitation.select().where(
-        (Invitation.event == event.id) & (
-            (Invitation.state == InvitationState.Invited) |
-            (Invitation.state == InvitationState.Accepted)
-        )
-    ).count()
-    num_invite = NUM_INVITE_USERS - num_invited
-
-    logging.info(
-        f"Event {event.id}: Sending {num_invite} invitations for event")
-
-    total_users = (User
-                   .select()
-                   .where(User.channel == event.channel)
-                   .count())
-    to_invite = get_event_candidates(event, num_invite, total_users)
-    if len(to_invite) < num_invite:
-        logging.error(
-            f"Event {event.id}: Got fewer candidates ({len(to_invite)}) than requested ({num_invite}). Has everyone been asked?")
-
-    for u in to_invite:
-        user = User.get(User.id == u["id"])
-        logging.info(
-            f"Event {event.id}: Inviting {user.name} (attended {u['events_attended']}) to event")
-        send_user_invitation(event, user)
-
-    return num_invite
 
 
 def send_user_invitation(event, user):
@@ -175,6 +233,7 @@ def update_user_invitation(invitation, new_state):
         InvitationState.Accepted: "Du har takket JA :thumbsup: til :pizza:. Merk kalenderen!",
         InvitationState.Rejected: "Du har takket NEI :thumbsdown: til :pizza:. Håper å se deg neste gang!",
         InvitationState.NoResponse: "Du ignorerte meg! :blushing_robot: Nå går plassen din til noen andre og du går glipp av :pizza:. Sees neste gang?",
+        InvitationState.Rescinded: "Utvikleren av Pizzabot har gjort noe dumt, og som en konsekvens av dette må din invitasjon til pizzakveld trekkes. Beklager :("
     }.get(new_state, ":scream:")
 
     response = slack.chat_postMessage(
@@ -183,18 +242,6 @@ def update_user_invitation(invitation, new_state):
     )
     if not response["ok"]:
         raise "shit"
-
-    if invitation.state == InvitationState.Rejected:
-        logging.info(
-            "Event {invitiation.event_id}: Sending new invitations as invitation {invitation.id} was rejected")
-        send_event_invitations(invitation.event)
-
-    if invitation.state == InvitationState.Accepted:
-        logging.info(
-            f"Event {invitation.event_id}: Checking if event can be finalized as {invitation.id} was accepted")
-        finalize_event(invitation.event)
-
-    return invitation
 
 
 def _get_last_reminded(event, reminders):
@@ -205,86 +252,27 @@ def _get_last_reminded(event, reminders):
     return reminders[0].sent_at
 
 
-def send_invitation_reminders(event):
-    pending = api.events.get_pending_invitations(event.id)
+def send_invitation_reminder(invitation):
+    Reminder.create(
+        invitation=invitation.id,
+    )
 
-    reminded, norsvp = 0, 0
-
-    for invitation in pending:
-        reminders = api.events.get_invitation_reminders(invitation.id)
-        last_reminded = _get_last_reminded(event, reminders)
-        time_diff = (datetime.datetime.now() - last_reminded)
-        if time_diff > datetime.timedelta(minutes=1):
-            logging.info(
-                f"Event {event.id}: Invitation {invitation.id} past time threshold, reminding")
-            r, n = send_invitation_reminder(invitation, reminders)
-            reminded += r
-            norsvp += n
-    logging.info(
-        f"Event {event.id}: Sent {reminded} reminders and marked {norsvp} no-RSVP on {len(pending)} invitations")
-    return reminded, norsvp
-
-
-def send_invitation_reminder(invitation, reminders):
-    if len(reminders) >= NUM_REMINDERS:
-        logging.info(
-            f"Invitation {invitation.id}: Sent reminders reached threshold {NUM_REMINDERS}, marking no-RSVP")
-        update_user_invitation(invitation, InvitationState.NoResponse)
-
-        return 0, 1
-    else:
-        logging.info(
-            f"Invitation {invitation.id}: Sending reminder #{len(reminders)+1}")
-        Reminder.create(
-            invitation=invitation.id,
-        )
-
-        channel = api.slack.start_im("UCF7RT0HF")  # invitation.user.slack_id
-        num_reminded = len(reminders)
-        level_of_anger = "!?" * (num_reminded + 1)
-        slack.chat_postMessage(
-            channel=channel,
-            text=f"Hei! Har ikke hørt noe fra deg på en stund ang. denne pizzakvelden. Kan du plz svare{level_of_anger}"
-        )
-
-        return 1, 0
-
-    return 0, 0
-
-
-def finalize_events():
-    events = api.events.get_events_in_preparation()
-    finalized = 0
-    for e in events:
-        did_finalize = finalize_event(e)
-        if did_finalize:
-            finalized += 1
-    return finalized
+    channel = api.slack.start_im("UCF7RT0HF")  # invitation.user.slack_id
+    slack.chat_postMessage(
+        channel=channel,
+        text=f"Hei! Har ikke hørt noe fra deg på en stund ang. denne pizzakvelden. Kan du plz svare!?"
+    )
 
 
 def finalize_event(event):
+    event.finalized = True
+    event.save()
     accepted = api.events.get_accepted_invitations(event.id)
-    if len(accepted) == NUM_INVITE_USERS:
-        logging.info(
-            f"Event {event.id}: Accepted invitations reached threshold, finalizing event")
-        # Sanity check: Ensure there are no pending invites
-        pending = api.events.get_pending_invitations(event.id)
-        if len(pending) > 0:
-            logging.error(
-                f"{event.id} has enough accepted members, yet there are {len(pending)} pending invites. Marking as rejections.")
-            for i in pending:
-                i.update(state=InvitationState.Rejected)
-
-        event.finalized = True
-        event.save()
-
-        users = list(map(lambda inv: inv.user.slack_id, accepted))
-        mentions = utils.create_mentions(users)
-        # TODO: REMOVE
-        channel = api.slack.start_im("UCF7RT0HF")
-        slack.chat_postMessage(
-            channel=channel,  # event.channel.id
-            text=f"{mentions} dere skal på pizza da. {event.venue.name} {utils.sane_time(event.starts_at)}"
-        )
-        return True
-    return False
+    users = list(map(lambda inv: inv.user.slack_id, accepted))
+    mentions = utils.create_mentions(users)
+    # TODO: REMOVE
+    channel = api.slack.start_im("UCF7RT0HF")
+    slack.chat_postMessage(
+        channel=channel,  # event.channel.id
+        text=f"{mentions} dere skal på pizza da. {event.venue.name} {utils.sane_time(event.starts_at)}"
+    )
