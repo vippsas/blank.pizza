@@ -13,21 +13,11 @@ import views
 import utils
 
 
-NUM_INVITE_USERS = 3
-NUM_REMINDERS = 3
-
-
 def process_events():
     events = api.events.get_events_in_preparation()
 
     for e in events:
         process_event(e)
-
-
-EVENT_URGENT = 24
-EVENT_START_INVITES = 10
-REMIND_INTERVAL = 4
-REMIND_INTERVAL_URGENT = 30
 
 
 def process_event(event):
@@ -36,91 +26,94 @@ def process_event(event):
         logging.info(f"Event {event.id}: Event is finalized, skipping")
         return
 
+    channel = event.channel
+
     time_until_event = datetime.datetime.now() - event.starts_at
-    if time_until_event > datetime.timedelta(days=EVENT_START_INVITES):
+    if time_until_event > utils.seconds_to_timedelta(channel.start_preparation):
         logging.info(
             f"Event {event.id}: Event is too far in the future, skipping")
         return
 
+    """
     if time_until_event <= datetime.timedelta(hours=EVENT_URGENT):
         logging.info(f"Event {event.id}: Event is in URGENT mode")
+    """
 
-    if time_until_event <= datetime.timedelta(days=EVENT_START_INVITES):
-        # Send reminders
+    # Send reminders
+    pending_invitations = api.events.get_pending_invitations(event.id)
+    if len(pending_invitations) > 0:
+        reminded, norsvpd = 0, 0
+        for invitation in pending_invitations:
+            reminders = api.events.get_invitation_reminders(invitation.id)
+            last_reminded = _get_last_reminded(event, reminders)
+            time_diff = (datetime.datetime.now() - last_reminded)
+            if time_diff > utils.seconds_to_timedelta(channel.reminder_interval):
+                # Check if invitation reminder has expired
+                if len(reminders) >= channel.reminders:
+                    # Check if invitation has reached threshold for amount of reminders
+                    logging.info(
+                        f"Event {event.id}: Invitation {invitation.id} expired without response, marking no-RSVP")
+                    update_user_invitation(
+                        invitation, InvitationState.NoResponse)
+                    norsvpd += 1
+                else:
+                    # If not, send a new reminder
+                    logging.info(
+                        f"Event {event.id}: Sending reminder  # {len(reminders)+1} for invitation {invitation.id}")
+                    send_invitation_reminder(invitation)
+                    reminded += 1
+        logging.info(
+            f"Event {event.id}: Sent {reminded} invitation reminders and marked {norsvpd} invitations no-RSVP")
+
+    num_accepted_invitations = (api.events
+                                .get_accepted_invitations(event.id)
+                                .count())
+    if num_accepted_invitations == channel.participants:
+        logging.info(
+            f"Event {event.id}: Event has enough participants, finalizing")
+
+        # Sanity check: If event has enough participants, it should not have any pending invites
         pending_invitations = api.events.get_pending_invitations(event.id)
         if len(pending_invitations) > 0:
-            reminded, norsvpd = 0, 0
+            logging.warning(
+                f"Event {event.id}: Event has enough participants, yet has pending invites. This should not happen. Rescinding invitations.")
             for invitation in pending_invitations:
-                reminders = api.events.get_invitation_reminders(invitation.id)
-                last_reminded = _get_last_reminded(event, reminders)
-                time_diff = (datetime.datetime.now() - last_reminded)
-                if time_diff > datetime.timedelta(minutes=1):
-                    # Check if invitation reminder has expired
-                    if len(reminders) >= NUM_REMINDERS:
-                        # Check if invitation has reached threshold for amount of reminders
-                        logging.info(
-                            f"Event {event.id}: Invitation {invitation.id} expired without response, marking no-RSVP")
-                        update_user_invitation(
-                            invitation, InvitationState.NoResponse)
-                        norsvpd += 1
-                    else:
-                        # If not, send a new reminder
-                        logging.info(
-                            f"Event {event.id}: Sending reminder  # {len(reminders)+1} for invitation {invitation.id}")
-                        send_invitation_reminder(invitation)
-                        reminded += 1
+                update_user_invitation(
+                    invitation, InvitationState.Rescinded)
+
+        finalize_event(event)
+        return
+
+    num_pending_invitations = (api.events
+                               .get_pending_invitations(event.id)
+                               .count())
+    num_active_invitations = num_accepted_invitations + num_pending_invitations
+    num_to_invite = channel.participants - num_active_invitations
+    if num_to_invite > 0:
+        new_invitations = get_event_candidates(
+            event,
+            num_to_invite,
+            event.channel.users.count()
+        )
+
+        # Check if channel is exhausted for invitations
+        if len(new_invitations) == 0:
             logging.info(
-                f"Event {event.id}: Sent {reminded} invitation reminders and marked {norsvpd} invitations no-RSVP")
-
-        num_accepted_invitations = (api.events
-                                    .get_accepted_invitations(event.id)
-                                    .count())
-        if num_accepted_invitations == NUM_INVITE_USERS:
+                f"Event {event.id}: Event needs {num_to_invite} more participants, but there are no more candidates")
+            if num_pending_invitations == 0 and num_accepted_invitations < channel.participants:
+                logging.info(
+                    f"Event {event.id}: Finalizing event with {num_accepted_invitations} participants as there are no more candidates to invite")
+                finalize_event(event)
+                return
+        elif len(new_invitations) < num_to_invite:
             logging.info(
-                f"Event {event.id}: Event has enough participants, finalizing")
+                f"Event {event.id}: Needed {num_to_invite} new candidates, but found only {len(new_invitations)}")
 
-            # Sanity check: If event has enough participants, it should not have any pending invites
-            pending_invitations = api.events.get_pending_invitations(event.id)
-            if len(pending_invitations) > 0:
-                logging.warning(
-                    f"Event {event.id}: Event has enough participants, yet has pending invites. This should not happen. Rescinding invitations.")
-                for invitation in pending_invitations:
-                    update_user_invitation(
-                        invitation, InvitationState.Rescinded)
-
-            finalize_event(event)
-            return
-
-        num_pending_invitations = (api.events
-                                   .get_pending_invitations(event.id)
-                                   .count())
-        num_active_invitations = num_accepted_invitations + num_pending_invitations
-        num_to_invite = NUM_INVITE_USERS - num_active_invitations
-        if num_to_invite > 0:
-            new_invitations = get_event_candidates(
-                event,
-                num_to_invite,
-                event.channel.users.count()
-            )
-
-            # Check if channel is exhausted for invitations
-            if len(new_invitations) == 0:
-                logging.info(
-                    f"Event {event.id}: Event needs {num_to_invite} more participants, but there are no more candidates")
-                if num_pending_invitations == 0 and num_accepted_invitations < NUM_INVITE_USERS:
-                    logging.info(
-                        f"Event {event.id}: Finalizing event with {num_accepted_invitations} participants as there are no more candidates to invite")
-                    finalize_event(event)
-                    return
-            elif len(new_invitations) < num_to_invite:
-                logging.info(
-                    f"Event {event.id}: Needed {num_to_invite} new candidates, but found only {len(new_invitations)}")
-
-            for candidate in new_invitations:
-                user = User.get(User.id == candidate["id"])
-                logging.info(
-                    f"Event {event.id}: Inviting {user.name} (attended {candidate['events_attended']}) to event")
-                send_user_invitation(event, user)
+        for candidate in new_invitations:
+            user = User.get(User.id == candidate["id"])
+            logging.info(
+                f"Event {event.id}: Inviting {user.name} (attended {candidate['events_attended']}) to event")
+            send_user_invitation(event, user)
 
 
 def create_event(channel):

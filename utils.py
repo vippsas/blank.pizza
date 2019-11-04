@@ -1,3 +1,6 @@
+import datetime
+
+
 def create_mention(user_id):
     return f"<@{user_id}>"
 
@@ -13,3 +16,11 @@ def create_mentions(user_ids):
 
 def sane_time(dt):
     return dt.strftime('%d/%m %H:%M')
+
+
+def timedelta_to_seconds(td):
+    return td.total_seconds()
+
+
+def seconds_to_timedelta(seconds):
+    return datetime.timedelta(seconds=seconds)

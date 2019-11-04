@@ -8,10 +8,12 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 def debug_init():
+    import datetime
     from peewee import EXCLUDED
     from database import database as db
     from client import client as slack
     from models import Team, Channel, User, Venue
+    import utils
 
     import api.slack
 
@@ -26,7 +28,16 @@ def debug_init():
     api.slack.populate_cache()
     for c in conversations:
         team, _ = Team.get_or_create(id=team_id)
-        channel = Channel.create(id=c["id"], team=team.id)
+        channel = Channel.create(
+            id=c["id"],
+            team=team.id,
+            start_preparation=utils.timedelta_to_seconds(
+                datetime.timedelta(days=10)),
+            participants=3,
+            reminders=2,
+            reminder_interval=utils.timedelta_to_seconds(
+                datetime.timedelta(hours=4)),
+        )
 
         users = api.slack.get_slack_users(channel.id)
         for u in users:
