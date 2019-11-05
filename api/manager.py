@@ -12,6 +12,9 @@ import api.events
 import views
 import utils
 
+# use this to prevent spamming poor slack users while debugging bot
+DEBUG_SLACK_USER_ID = ''
+
 
 def process_events():
     events = api.events.get_events_in_preparation()
@@ -186,7 +189,7 @@ def get_event_candidates(event, num_invite, num_candidates):
 
 
 def send_user_invitation(event, user):
-    channel = api.slack.start_im("UCF7RT0HF")  # user.slack_id
+    channel = api.slack.start_im(DEBUG_SLACK_USER_ID)  # user.slack_id
 
     view = views.Invitation(
         user.slack_id,
@@ -272,7 +275,8 @@ def send_invitation_reminder(invitation):
         invitation=invitation.id,
     )
 
-    channel = api.slack.start_im("UCF7RT0HF")  # invitation.user.slack_id
+    # invitation.user.slack_id
+    channel = api.slack.start_im(DEBUG_SLACK_USER_ID)
     slack.chat_postMessage(
         channel=channel,
         text=f"Hei! Har ikke hørt noe fra deg på en stund ang. denne pizzakvelden. Kan du plz svare!?"
@@ -286,7 +290,7 @@ def finalize_event(event):
     users = list(map(lambda inv: inv.user.slack_id, accepted))
     mentions = utils.create_mentions(users)
     # TODO: REMOVE
-    channel = api.slack.start_im("UCF7RT0HF")
+    channel = api.slack.start_im(DEBUG_SLACK_USER_ID)
     slack.chat_postMessage(
         channel=channel,  # event.channel.id
         text=f"{mentions} dere skal på pizza da. {event.venue.name} {utils.sane_time(event.starts_at)}"
