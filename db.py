@@ -1,5 +1,6 @@
 from pyodbc import connect
 import os
+import math
 
 
 def create_connection_string():
@@ -29,32 +30,36 @@ def update_slack_users(slack_users):
 
     with pizza_conn:
         with pizza_conn.cursor() as curs:
-            curs.execute("DELETE FROM slack_users;")
             curs.executemany(
-                "INSERT INTO slack_users (slack_id, current_username, email) VALUES (?,?,?);", usernames)
+                """
+                INSERT INTO slack_users (slack_id, current_username, email) VALUES (?,?,?);
+                
+                """, usernames)
 
 
 def get_users_to_invite(number_of_users_to_invite, event_id, total_number_of_employees, employees_per_event):
     number_of_events_regarded = math.ceil(
         total_number_of_employees / employees_per_event)
 
-    sql = """
-        SELECT slack_users.slack_id, count(rsvp) AS events_attended
-        FROM slack_users
-        LEFT JOIN invitations ON slack_users.slack_id = invitations.slack_id
-        AND invitations.rsvp = 'attending' AND invitations.event_id
-        IN (SELECT id FROM events WHERE time < NOW() AND finalized = true ORDER BY time desc limit ?)
-        WHERE NOT EXISTS (SELECT * FROM invitations WHERE invitations.event_id =  ?
-        AND invitations.slack_id = slack_users.slack_id)
-        AND slack_users.active = TRUE
-        GROUP BY slack_users.slack_id ORDER BY events_attended, random()
-        LIMIT %s;
-    """
+    sql = """SELECT TOP 5 slack_users.slack_id, count(rsvp) AS events_attended
+    FROM slack_users LEFT JOIN invitations ON slack_users.slack_id =
+    invitations.slack_id         AND invitations.rsvp = 'attending' AND
+    invitations.event_id         IN (SELECT TOP 1 id FROM events WHERE time <
+            CURRENT_TIMESTAMP AND finalized = 'true' ORDER BY time desc)
+    WHERE NOT EXISTS (SELECT * FROM invitations WHERE invitations.event_id =
+            ?         AND
+            invitations.slack_id = slack_users.slack_id)         AND
+    slack_users.active_ = 'true'         GROUP BY slack_users.slack_id ORDER BY
+    events_attended, newid();"""
 
     with pizza_conn:
         with pizza_conn.cursor() as curs:
-            curs.execute(sql, (number_of_events_regarded,
-                               event_id, number_of_users_to_invite))
+            print(sql, number_of_users_to_invite, number_of_events_regarded, event_id)
+            print(sql, type(number_of_users_to_invite), type(number_of_events_regarded), type(event_id))
+            print(event_id)
+            curs.execute(sql, (#number_of_users_to_invite,
+                               #number_of_events_regarded,
+                               event_id,))
             rows = curs.fetchall()
             return [x[0] for x in rows]
 

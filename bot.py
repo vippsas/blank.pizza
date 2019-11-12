@@ -6,6 +6,7 @@ import os
 import requests
 import base64
 
+import slackutil
 from slack import RTMClient
 from time import sleep
 
@@ -52,21 +53,22 @@ def respond(**payload):
                 """
         elif(is_dm(message) and 'user' in message):
             web_client = payload["web_client"]
-            web_client.chat_postMessage(channel=message["channel"], text="Hi!", username="Meet and eat", icon_url="https://findicons.com/icon/download/37734/pizza_slice/128/png")
+            web_client.chat_postMessage(channel=message["channel"], text="Thanks for your message", username="Meet and eat", icon_url="https://findicons.com/icon/download/37734/pizza_slice/128/png")
             if message['user'] in api.get_invited_users():
                 if message['text'].lower() == 'ja':
                     api.rsvp(message['user'], 'attending')
-                    api.send_slack_message(
+                    slackutil.send_slack_message(
                         message['channel'], u'Sweet! 🤙')
                     api.finalize_event_if_complete()
                 elif message['text'].lower() == 'nei':
                     api.rsvp(message['user'], 'not attending')
-                    api.send_slack_message(message['channel'], u'Ok 😏')
+                    web_client.chat_postMessage(channel=message["channel"], text=f'Ok 😏', username="Meet and eat", icon_url="https://findicons.com/icon/download/37734/pizza_slice/128/png")
+
                     api.invite_if_needed()
                 else:
                     api.send_slack_message(
                         message['channel'], u'Hehe jeg er litt dum, jeg. Skjønner jeg ikke helt hva du mener 😳. Kan du være med? (ja/nei)')
-    except e:
+    except Exception as e:
         print("exception", e)
 
 print("starting rtmclient listener")
