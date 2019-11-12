@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import slack
+import slackutil
 import db
 import locale
 import pytz
 from datetime import datetime, timedelta
 
-locale.setlocale(locale.LC_ALL, "nb_NO.utf8")
+#locale.setlocale(locale.LC_ALL, "nb_NO.utf8")
 
 PEOPLE_PER_EVENT = 5
 REPLY_DEADLINE_IN_HOURS = 24
@@ -80,7 +80,7 @@ def finalize_event_if_complete():
         slack_ids = ['<@%s>' % user for user in db.get_attending_users(event_id)]
         db.mark_event_as_finalized(event_id)
         ids_string = ", ".join(slack_ids)
-        slack.send_slack_message('#pizza', "Halloi! %s! Dere skal spise 🍕 på %s, %s. %s booker bord, og %s legger ut for maten. Blank betaler!" % (ids_string, place, timestamp.strftime("%A %d. %B kl %H:%M"), slack_ids[0], slack_ids[1]))
+        slack.send_slack_message('#pizza', "Halloi! %s! Dere skal spise 🍕 på %s, %s. %s booker bord, og %s legger ut for maten. Vipps betaler!" % (ids_string, place, timestamp.strftime("%A %d. %B kl %H:%M"), slack_ids[0], slack_ids[1]))
 
 def auto_reply():
     users_that_did_not_reply = db.auto_reply_after_deadline(REPLY_DEADLINE_IN_HOURS)
@@ -98,14 +98,14 @@ def rsvp(slack_id, answer):
     db.rsvp(slack_id, answer)
 
 
-def send_slack_message(channel_id, text, attachments=None):
-    slack.send_slack_message(channel_id, text, attachments)
+def send_slack_message(rtmclient, channel_id, text, attachments=None):
+    rtmclient.send_slack_message(channel_id, text, attachments)
 
 
 def get_invited_users():
     return db.get_invited_users()
 
 def sync_db_with_slack_and_return_count():
-  slack_users = slack.get_real_users(slack.get_slack_users())
+  slack_users = slackutil.get_real_users(slackutil.get_slack_users())
   db.update_slack_users(slack_users)
   return len(slack_users)

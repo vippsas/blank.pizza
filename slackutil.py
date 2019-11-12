@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from slackclient import SlackClient
+from slack import WebClient
 import os
 
 slack_token = os.environ["SLACK_API_TOKEN"]
-sc = SlackClient(slack_token)
+sc = WebClient(slack_token)
 
 def get_slack_users():
     return sc.api_call("users.list")['members']

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import api
-import floq_db
+#import floq_db
 import db
 
 
@@ -26,13 +26,13 @@ def mention_people(people, message):
         mention_ids = map(lambda x: '<@%s>' % x, slack_ids)
         mention_string = create_mention_string(mention_ids)
         api.send_slack_message(
-            '#general', message % mention_string)
+            '#tmp-pizzabot', message % mention_string)
 
 
 api.sync_db_with_slack_and_return_count()
 
-mention_people(floq_db.get_users_with_first_day(),
-               "I dag har %s sin første dag i Blank! Velkommen 🌹")
+#mention_people(floq_db.get_users_with_first_day(),
+#"I dag har %s sin første dag i Vipps! Velkommen 🌹")
 
-mention_people(floq_db.get_users_with_birthday(),
-               "I dag har %s bursdag! Gratulerer 🎈")
+#mention_people(floq_db.get_users_with_birthday(),
+#"I dag har %s bursdag! Gratulerer 🎈")

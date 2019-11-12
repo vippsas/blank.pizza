@@ -1,20 +1,21 @@
-from psycopg2 import connect
-import math
+from pyodbc import connect
 import os
 
 
-def create_connection_string(db_host, db_name, db_user, db_passwd):
-    return "host='{}' dbname='{}' user='{}' password='{}'".format(db_host, db_name, db_user, db_passwd)
+def create_connection_string():
+    return "Driver={ODBC Driver 17 for SQL Server};Server=tcp:pizzabot-sql.database.windows.net,1433;Database=pizzabot-sql;Uid=pizzabot;Pwd=%s;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;" % os.environ["DB_PASSWD"]
+
 
 
 def connect_to_pizza_db():
-    db_host = os.environ["DB_HOST"]
-    db_name = os.environ["DB_NAME"]
-    db_user = os.environ["DB_USER"]
-    db_passwd = os.environ["DB_PASSWD"]
+    #db_host = os.environ["DB_HOST"]
+    #db_name = os.environ["DB_NAME"]
+    #db_user = os.environ["DB_USER"]
+    #db_passwd = os.environ["DB_PASSWD"]
 
-    conn = connect(create_connection_string(
-        db_host, db_name, db_user, db_passwd))
+    conn = connect(create_connection_string())
+    #db_host, db_name, db_user, db_passwd))
+
     return conn
 
 
