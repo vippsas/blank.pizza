@@ -1,0 +1,11 @@
+[Unit]
+Description=Run send-invites at some interval
+Requires=send-invites.service
+
+[Timer]
+Unit=send-invites.service
+OnUnitInactiveSec=10m
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

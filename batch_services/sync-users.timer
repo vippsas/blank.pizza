@@ -1,0 +1,13 @@
+# /etc/systemd/user/sync-users.timer
+
+[Unit]
+Description=Run sync-users at some interval
+Requires=sync-users.service
+
+[Timer]
+Unit=sync-users.service
+OnUnitInactiveSec=10m
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target
