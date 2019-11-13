@@ -25,8 +25,8 @@ def mention_people(people, message):
     if len(slack_ids) > 0:
         mention_ids = map(lambda x: '<@%s>' % x, slack_ids)
         mention_string = create_mention_string(mention_ids)
-        api.send_slack_message(
-            '#tmp-pizzabot', message % mention_string)
+        api.send_channel_message(
+            slackutil.PIZZA_CHANNEL, message % mention_string)
 
 
 api.sync_db_with_slack_and_return_count()

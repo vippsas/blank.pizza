@@ -114,7 +114,7 @@ def rsvp(slack_id, answer):
 
 
 def mark_event_as_finalized(event_id):
-    sql = "UPDATE events SET finalized = true WHERE id = ?;"
+    sql = "UPDATE events SET finalized = 'true' WHERE id = ?;"
 
     with pizza_conn:
         with pizza_conn.cursor() as curs:
@@ -128,7 +128,7 @@ def get_event_ready_to_finalize(people_per_event):
         WHERE  invitations.slack_id = slack_users.slack_id
         AND invitations.event_id = events.id
         AND rsvp = 'attending'
-        AND not finalized
+        AND finalized = 'false'
         GROUP BY event_id, time, place
         HAVING count(event_id) = ?;
     """
@@ -149,7 +149,7 @@ def get_unanswered_invitations():
 
 
 def get_attending_users(event_id):
-    sql = "SELECT slack_id FROM invitations WHERE rsvp = 'attending' and event_id = ? ORDER BY random();"
+    sql = "SELECT slack_id FROM invitations WHERE rsvp = 'attending' and event_id = ? ORDER BY newid();"
 
     with pizza_conn:
         with pizza_conn.cursor() as curs:
@@ -168,7 +168,7 @@ def get_slack_ids_from_emails(emails):
 
 
 def update_reminded_at(slack_id):
-    sql = "UPDATE invitations SET reminded_at = 'NOW()' where rsvp = 'unanswered' and slack_id = ?;"
+    sql = "UPDATE invitations SET reminded_at = CURRENT_TIMESTAMP where rsvp = 'unanswered' and slack_id = ?;"
 
     with pizza_conn:
         with pizza_conn.cursor() as curs:

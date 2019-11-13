@@ -53,21 +53,25 @@ def respond(**payload):
                 """
         elif(is_dm(message) and 'user' in message):
             web_client = payload["web_client"]
+            print("correct channel with andreas is ", message["channel"])
             web_client.chat_postMessage(channel=message["channel"], text="Thanks for your message", username="Meet and eat", icon_url="https://findicons.com/icon/download/37734/pizza_slice/128/png")
+            invited_users = api.get_invited_users()
+            print("bot:respond, invited_users are", invited_users)
+            print("bot:respond, got dm from", message["user"])
             if message['user'] in api.get_invited_users():
-                if message['text'].lower() == 'ja':
+                if message['text'].lower() == 'yes':
                     api.rsvp(message['user'], 'attending')
-                    slackutil.send_slack_message(
-                        message['channel'], u'Sweet! 🤙')
+                    slackutil.send_channel_message(
+                        message['channel'], u'✅ Sweet! This will be so nice and yummi 😋')
                     api.finalize_event_if_complete()
-                elif message['text'].lower() == 'nei':
+                elif message['text'].lower() == 'no':
                     api.rsvp(message['user'], 'not attending')
-                    web_client.chat_postMessage(channel=message["channel"], text=f'Ok 😏', username="Meet and eat", icon_url="https://findicons.com/icon/download/37734/pizza_slice/128/png")
+                    web_client.chat_postMessage(channel=message["channel"], text=f'⛔️ #nullstress. Next time! 🧡', username="Meet and eat", icon_url="https://findicons.com/icon/download/37734/pizza_slice/128/png")
 
                     api.invite_if_needed()
                 else:
-                    api.send_slack_message(
-                        message['channel'], u'Hehe jeg er litt dum, jeg. Skjønner jeg ikke helt hva du mener 😳. Kan du være med? (ja/nei)')
+                    api.send_private_message(
+                            message['channel'], u"Sorry, I am still a #newbiebot, and haven't learned to answer all types of question yet 😅. Are you attending? (yes/no)")
     except Exception as e:
         print("exception", e)
 

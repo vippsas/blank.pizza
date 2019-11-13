@@ -10,8 +10,7 @@ EXISTS slack_users; DROP TABLE IF EXISTS events;   CREATE TABLE slack_users (
 		events (id),   slack_id VARCHAR(200) REFERENCES slack_users
 		(slack_id),   invited_at DATETIME NOT NULL DEFAULT
 		CURRENT_TIMESTAMP,   rsvp VARCHAR(100) NOT NULL DEFAULT
-		'unanswered',   reminded_at DATETIME NOT NULL DEFAULT cast(0 as
-			datetime),   PRIMARY KEY (event_id, slack_id) );
+		'unanswered',   reminded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,   PRIMARY KEY (event_id, slack_id));
 	CREATE TABLE images (   cloudinary_id VARCHAR(200) PRIMARY KEY,
 		uploaded_by VARCHAR(200) REFERENCES slack_users (slack_id),
 		uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,   title
