@@ -15,6 +15,7 @@ pizza_channel_id = 'CQ249BV7C'
 slack_token = os.environ["SLACK_API_TOKEN"]
 rtmclient = RTMClient(token=slack_token)
 
+event_creators = ["sigrid.vag@vipps.no", "tharald.jorgen.stray@vipps.no", "amelie.maucade@vipps.no", "amelie.maucade@vipps.no"]
 
 
 def is_dm(message):
@@ -31,8 +32,7 @@ def respond(**payload):
             if 'files' in message:
                 web_client = payload["web_client"]
                 user = message["user"]
-                web_client.chat_postMessage(channel=message["channel"], text=f"Hi <@{user}>! Sorry I can't handle images yet :(")
-
+                web_client.chat_postMessage(channel=message["channel"], text=f"Hi <@{user}>! Sorry I can't handle images yet 😟", username="Meet and eat", icon_url="https://findicons.com/icon/download/37734/pizza_slice/128/png")
                 return
                 """
  |  def say_hello(**payload):  |      data = payload['data']  |      web_client = payload['web_client']  |      if 'Hello' in data['text']:  |          channel_id = data['channel']  |          thread_ts = data['ts']  |          user = data['user']  |  |          web_client.chat_postMessage(  |              channel=channel_id,  |              text=f"Hi <@{user}>!",  |              thread_ts=thread_ts  |          )
@@ -54,7 +54,6 @@ def respond(**payload):
         elif(is_dm(message) and 'user' in message):
             web_client = payload["web_client"]
             print("correct channel with andreas is ", message["channel"])
-            web_client.chat_postMessage(channel=message["channel"], text="Thanks for your message", username="Meet and eat", icon_url="https://findicons.com/icon/download/37734/pizza_slice/128/png")
             invited_users = api.get_invited_users()
             print("bot:respond, invited_users are", invited_users)
             print("bot:respond, got dm from", message["user"])

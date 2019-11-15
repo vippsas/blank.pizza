@@ -41,7 +41,7 @@ def get_users_to_invite(number_of_users_to_invite, event_id, total_number_of_emp
     number_of_events_regarded = math.ceil(
         total_number_of_employees / employees_per_event)
 
-    sql = """SELECT TOP 5 slack_users.slack_id, count(rsvp) AS events_attended
+    sql = """SELECT TOP 3 slack_users.slack_id, count(rsvp) AS events_attended
     FROM slack_users LEFT JOIN invitations ON slack_users.slack_id =
     invitations.slack_id         AND invitations.rsvp = 'attending' AND
     invitations.event_id         IN (SELECT TOP 1 id FROM events WHERE time <
@@ -59,7 +59,7 @@ def get_users_to_invite(number_of_users_to_invite, event_id, total_number_of_emp
             print(event_id)
             curs.execute(sql, (#number_of_users_to_invite,
                                #number_of_events_regarded,
-                               event_id,))
+                               event_id,)) # todo : fix this so that numbers of invites and events are not hard coded
             rows = curs.fetchall()
             return [x[0] for x in rows]
 
@@ -186,3 +186,11 @@ def auto_reply_after_deadline(deadline):
             print(sql)
             print(str(deadline) + " hours")
             curs.execute(sql, (-deadline,))
+
+def create_event(event_id, time, place):
+    sql = "INSERT INTO events (id, time, place) VALUES (?,?,?);"
+    print("creating event with id ", event_id)
+
+    with pizza_conn:
+        with pizza_conn.cursor() as curs:
+            curs.execute(sql, (event_id, time, place))

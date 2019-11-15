@@ -10,6 +10,7 @@ app = Flask(__name__)
 
 @app.route("/api/action", methods=['GET', 'POST'])
 def action():
+    print("got form", request.form)
     payload = json.loads(request.form["payload"])
     # team_id = requestDict['team']['id']
     responses = []

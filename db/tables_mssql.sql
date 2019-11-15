@@ -1,6 +1,6 @@
  DROP TABLE IF EXISTS invitations; DROP TABLE IF EXISTS images; DROP TABLE IF
 EXISTS slack_users; DROP TABLE IF EXISTS events;   CREATE TABLE slack_users (
-	slack_id VARCHAR(200) NOT NULL PRIMARY KEY,   current_username
+	slack_id VARCHAR(200) NOT NULL PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),   current_username
 	VARCHAR(200) NOT NULL,   first_seen DATE NOT NULL DEFAULT
 	CURRENT_TIMESTAMP,   active_ VARCHAR(50) NOT NULL DEFAULT 'true' );
 	CREATE TABLE events (   id UNIQUEIDENTIFIER PRIMARY KEY default
@@ -15,3 +15,5 @@ EXISTS slack_users; DROP TABLE IF EXISTS events;   CREATE TABLE slack_users (
 		uploaded_by VARCHAR(200) REFERENCES slack_users (slack_id),
 		uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,   title
 		VARCHAR(200) );
+
+	ALTER TABLE dbo.slack_users ADD email VARCHAR(200) NULL;

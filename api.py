@@ -9,32 +9,36 @@ from datetime import datetime, timedelta
 
 #locale.setlocale(locale.LC_ALL, "nb_NO.utf8")
 
-PEOPLE_PER_EVENT = 2
+PEOPLE_PER_EVENT = 3
 REPLY_DEADLINE_IN_HOURS = 24
 DAYS_IN_ADVANCE_TO_INVITE = 10
 HOURS_BETWEEN_REMINDERS = 4
 
+
 BUTTONS_ATTACHMENT = [
     {
-        "fallback": "Det funket ikke å svare :/",
-        "callback_id": "rsvp",
-        "color": "#3AA3E3",
-        "attachment_type": "default",
-        "actions": [
+        "type": "actions",
+        "elements": [
             {
-                "name": "option",
-                "text": "Hells yesss!!! 🍕🍕🍕",
+                "text": {
+                    "type": "plain_text", 
+                    "text": "Hells yesss!!! 🍕🍕🍕",
+                },
                 "type": "button",
                 "value": "attending"
             },
             {
-                "name": "option",
-                "text": "Nah ☹️",
+                "text": {
+                    "type": "plain_text", 
+                    "text": "Nah ☹️",
+                },
                 "type": "button",
-                "value": "not attending"
-            }]
-    }]
-
+                "value": "attending"
+            }
+        ]
+    }
+]
+BUTTONS_ATTACHMENT = None
 
 def invite_if_needed():
     print("api:invite_if_needed")

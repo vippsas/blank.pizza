@@ -18,16 +18,28 @@ def get_real_users(channel_members):
  
     return [u for u in all_users if u['id'] in members and not u['deleted'] and not u['is_bot'] and not u['is_restricted'] and not u['name'] == "slackbot"] # type : list
 
-def send_private_message(user_id, text, attachments=None):
+def send_private_message(user_id, text, blocks=None):
     print("slackutil:send_private_message to", user_id, text)
     try:
-        resp = sc.im_open(user=user_id, text=text, attachments=attachments)
+        resp = sc.im_open(user=user_id, text=text, blocks=blocks)
         channel_id = resp["channel"]["id"]
-        send_channel_message(channel_id, text, attachments)
+        send_channel_message(channel_id, text, blocks)
     except Exception as e:
         print("In send_private_message")
         print(e)
 
-def send_channel_message(channel_id, text, attachments=None):
+def send_channel_message(channel_id, text, blocks=None):
     print("slackutil:send_channel_message")
-    sc.chat_postMessage(channel=channel_id, text=text, username="Meet and eat", icon_url="https://findicons.com/icon/download/37734/pizza_slice/128/png", blocks=attachments)
+    text_and_blocks = []
+    text_and_blocks.append(
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": text}
+        },
+    )
+    if blocks:
+        text_and_blocks.extend(blocks)
+    sc.chat_postMessage(channel=channel_id, text=text, username="Meet and eat", icon_url="https://findicons.com/icon/download/37734/pizza_slice/128/png", blocks=text_and_blocks)
+
+
+
